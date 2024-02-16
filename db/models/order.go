@@ -1,4 +1,4 @@
-package main
+package models
 
 type Order struct {
 	Side   Side    `json:"side"`

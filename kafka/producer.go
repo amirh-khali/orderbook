@@ -6,14 +6,13 @@ import (
 	"os"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"orderbook/env"
 )
 
 var producer *kafka.Producer
 
-func InitProducer() {
+func InitProducer(servers string) {
 	p, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers": env.ENV.BootstrapServers,
+		"bootstrap.servers": servers,
 	})
 
 	if err != nil {

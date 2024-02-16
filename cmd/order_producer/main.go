@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"time"
 
+	"orderbook/db/models"
 	"orderbook/env"
 	"orderbook/kafka"
 	"orderbook/scheduler"
@@ -14,11 +15,11 @@ const (
 	maxAmount = 100000
 )
 
-var minPrice map[Symbol]int
-var maxPrice map[Symbol]int
-var priceMultiplier map[Symbol]int
-var symbols []Symbol
-var sides []Side
+var minPrice map[models.Symbol]int
+var maxPrice map[models.Symbol]int
+var priceMultiplier map[models.Symbol]int
+var symbols []models.Symbol
+var sides []models.Side
 
 func produce() {
 	sd := sides[rand.Intn(len(sides))]
@@ -26,37 +27,37 @@ func produce() {
 	a := float64(minAmount+rand.Intn(maxAmount-minAmount)) / 100000
 	p := float64(priceMultiplier[sb]) * float64(minPrice[sb]+rand.Intn(maxPrice[sb]-minPrice[sb]))
 
-	kafka.Produce(Order{Side: sd, Symbol: sb, Amount: a, Price: p}, env.ENV.KafkaTopic)
+	kafka.Produce(models.Order{Side: sd, Symbol: sb, Amount: a, Price: p}, env.ENV.KafkaTopic)
 }
 
 func constantsInit() {
-	minPrice = map[Symbol]int{
-		BTCUSDT: 490,
-		ETHUSDT: 2780,
-		BTCIRT:  28950,
-		ETHIRT:  1550,
+	minPrice = map[models.Symbol]int{
+		models.BTCUSDT: 490,
+		models.ETHUSDT: 2780,
+		models.BTCIRT:  28950,
+		models.ETHIRT:  1550,
 	}
-	maxPrice = map[Symbol]int{
-		BTCUSDT: 510,
-		ETHUSDT: 2800,
-		BTCIRT:  28970,
-		ETHIRT:  1560,
+	maxPrice = map[models.Symbol]int{
+		models.BTCUSDT: 510,
+		models.ETHUSDT: 2800,
+		models.BTCIRT:  28970,
+		models.ETHIRT:  1560,
 	}
-	priceMultiplier = map[Symbol]int{
-		BTCUSDT: 100,
-		ETHUSDT: 1,
-		BTCIRT:  100000,
-		ETHIRT:  100000,
+	priceMultiplier = map[models.Symbol]int{
+		models.BTCUSDT: 100,
+		models.ETHUSDT: 1,
+		models.BTCIRT:  100000,
+		models.ETHIRT:  100000,
 	}
-	symbols = []Symbol{BTCUSDT, ETHUSDT, BTCIRT, ETHIRT}
-	sides = []Side{Buy, Sell}
+	symbols = []models.Symbol{models.BTCUSDT, models.ETHUSDT, models.BTCIRT, models.ETHIRT}
+	sides = []models.Side{models.Buy, models.Sell}
 }
 
 func main() {
 	env.LoadEnv()
 	constantsInit()
 
-	kafka.InitProducer()
+	kafka.InitProducer(env.ENV.BootstrapServers)
 
 	scheduler.Init()
 	scheduler.AddJob(time.Second, produce)
