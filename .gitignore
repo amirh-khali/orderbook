@@ -111,6 +111,7 @@ modules.xml
 .idea/misc.xml
 *.ipr
 .idea/*
+env/.env
 
 # Sonarlint plugin
 # https://plugins.jetbrains.com/plugin/7973-sonarlint
