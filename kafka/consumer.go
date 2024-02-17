@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"orderbook/db"
 	"orderbook/db/models"
 )
 
@@ -39,7 +40,7 @@ func Subscribe(t string) {
 	log.Printf("topic %s subscribed\n", t)
 }
 
-func StartConsume() {
+func StartConsume(obMap *[]*db.OrderBook) {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 
@@ -57,12 +58,14 @@ func StartConsume() {
 
 			switch e := ev.(type) {
 			case *kafka.Message:
-				var value models.Order
-				err := json.Unmarshal(e.Value, &value)
+				var o models.Order
+				err := json.Unmarshal(e.Value, &o)
 				if err != nil {
 					fmt.Printf("Failed to deserialize payload: %s\n", err)
 				} else {
-					fmt.Printf("%% Message on %s:\n%+v\n", e.TopicPartition, value)
+					fmt.Printf("%% Message on %s:\n%+v\n", e.TopicPartition, o)
+					o.Renew()
+					(*obMap)[o.Symbol].AddOrder(&o)
 				}
 				if e.Headers != nil {
 					fmt.Printf("%% Headers: %v\n", e.Headers)

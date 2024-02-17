@@ -25,7 +25,7 @@ func produce() {
 	sd := sides[rand.Intn(len(sides))]
 	sb := symbols[rand.Intn(len(symbols))]
 	a := float64(minAmount+rand.Intn(maxAmount-minAmount)) / 100000
-	p := float64(priceMultiplier[sb]) * float64(minPrice[sb]+rand.Intn(maxPrice[sb]-minPrice[sb]))
+	p := uint32(priceMultiplier[sb]*minPrice[sb] + rand.Intn(maxPrice[sb]-minPrice[sb]))
 
 	kafka.Produce(models.Order{Side: sd, Symbol: sb, Amount: a, Price: p}, env.ENV.KafkaTopic)
 }
@@ -44,10 +44,10 @@ func constantsInit() {
 		models.ETHIRT:  1560,
 	}
 	priceMultiplier = map[models.Symbol]int{
-		models.BTCUSDT: 100,
+		models.BTCUSDT: 10,
 		models.ETHUSDT: 1,
-		models.BTCIRT:  100000,
-		models.ETHIRT:  100000,
+		models.BTCIRT:  1000,
+		models.ETHIRT:  1000,
 	}
 	symbols = []models.Symbol{models.BTCUSDT, models.ETHUSDT, models.BTCIRT, models.ETHIRT}
 	sides = []models.Side{models.Buy, models.Sell}
