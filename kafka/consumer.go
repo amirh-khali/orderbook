@@ -2,15 +2,14 @@ package kafka
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
-	"orderbook/db"
-	"orderbook/db/models"
+	"orderbook/core"
+	"orderbook/core/models"
 )
 
 var consumer *kafka.Consumer
@@ -40,7 +39,7 @@ func Subscribe(t string) {
 	log.Printf("topic %s subscribed\n", t)
 }
 
-func StartConsume(obMap *[]*db.OrderBook) {
+func StartConsume() {
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 
@@ -48,7 +47,7 @@ func StartConsume(obMap *[]*db.OrderBook) {
 	for run {
 		select {
 		case sig := <-ch:
-			fmt.Printf("Caught signal %v: terminating\n", sig)
+			log.Printf("Caught signal %v: terminating\n", sig)
 			run = false
 		default:
 			ev := consumer.Poll(100)
@@ -61,23 +60,23 @@ func StartConsume(obMap *[]*db.OrderBook) {
 				var o models.Order
 				err := json.Unmarshal(e.Value, &o)
 				if err != nil {
-					fmt.Printf("Failed to deserialize payload: %s\n", err)
+					log.Printf("Failed to deserialize payload: %s\n", err)
 				} else {
-					fmt.Printf("%% Message on %s:\n%+v\n", e.TopicPartition, o)
+					log.Printf("%% Message on %s: %+v\n", e.TopicPartition, o)
 					o.Renew()
-					(*obMap)[o.Symbol].AddOrder(&o)
+					(*core.OrderbookMap)[o.Symbol].AddOrder(&o)
 				}
 				if e.Headers != nil {
-					fmt.Printf("%% Headers: %v\n", e.Headers)
+					log.Printf("%% Headers: %v\n", e.Headers)
 				}
 			case kafka.Error:
-				_, _ = fmt.Fprintf(os.Stderr, "%% Error: %v: %v\n", e.Code(), e)
+				log.Printf("%% Error: %v: %v\n", e.Code(), e)
 			default:
-				fmt.Printf("Ignored %v\n", e)
+				log.Printf("Ignored %v\n", e)
 			}
 		}
 	}
 
-	fmt.Printf("Closing consumer\n")
+	log.Printf("Closing consumer\n")
 	_ = consumer.Close()
 }

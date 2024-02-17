@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/gin-gonic/gin"
 	"orderbook/api"
-	"orderbook/db"
+	"orderbook/core"
 	"orderbook/env"
 	"orderbook/kafka"
 )
@@ -21,11 +21,11 @@ func main() {
 	env.LoadEnv()
 	r := newRouter()
 
-	obMap := db.NewOrderBookMap()
+	core.NewOrderbookMap()
 
 	kafka.InitConsumer(env.ENV.BootstrapServers, env.ENV.KafkaGroupID, env.ENV.KafkaAutoOffsetReset)
 	kafka.Subscribe(env.ENV.KafkaTopic)
-	go kafka.StartConsume(obMap)
+	go kafka.StartConsume()
 
 	err := r.Run()
 	if err != nil {

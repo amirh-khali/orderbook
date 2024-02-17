@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"time"
 
-	"orderbook/db/models"
+	"orderbook/core/models"
 	"orderbook/env"
 	"orderbook/kafka"
 	"orderbook/scheduler"

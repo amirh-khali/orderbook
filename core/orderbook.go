@@ -1,9 +1,12 @@
-package db
+package core
 
 import (
-	"github.com/google/uuid"
+	"fmt"
 	"log"
-	"orderbook/db/models"
+
+	"github.com/google/uuid"
+	apimodels "orderbook/api/models"
+	"orderbook/core/models"
 )
 
 type ActionType string
@@ -15,7 +18,7 @@ const (
 	AtFilled        = "FILLED"
 )
 
-const MaxPrice = 10000000
+const MaxPrice = 100000000
 
 type PricePoint struct {
 	OrderHead *models.Order
@@ -32,25 +35,27 @@ func (pp *PricePoint) Insert(o *models.Order) {
 	}
 }
 
-type OrderBook struct {
+type Orderbook struct {
 	MinAsk      uint32
 	MaxBid      uint32
 	OrderIndex  map[uuid.UUID]*models.Order
 	PricePoints [MaxPrice]*PricePoint
 }
 
-func NewOrderBookMap() *[]*OrderBook {
-	var obMap []*OrderBook
+var OrderbookMap *map[models.Symbol]*Orderbook
+
+func NewOrderbookMap() {
+	obMap := make(map[models.Symbol]*Orderbook)
 	symbols := []models.Symbol{models.BTCUSDT, models.ETHUSDT, models.BTCIRT, models.ETHIRT}
 	for _, s := range symbols {
-		obMap[s] = newOrderBook()
+		obMap[s] = newOrderbook()
 	}
 
-	return &obMap
+	OrderbookMap = &obMap
 }
 
-func newOrderBook() *OrderBook {
-	ob := new(OrderBook)
+func newOrderbook() *Orderbook {
+	ob := new(Orderbook)
 	ob.MaxBid = 0
 	ob.MinAsk = MaxPrice
 	for i := range ob.PricePoints {
@@ -60,7 +65,7 @@ func newOrderBook() *OrderBook {
 	return ob
 }
 
-func (ob *OrderBook) AddOrder(o *models.Order) {
+func (ob *Orderbook) AddOrder(o *models.Order) {
 	if o.Side == models.Buy {
 		log.Printf("actionType: %s, order: %s", AtBuy, o.String())
 		ob.FillBuy(o)
@@ -74,7 +79,7 @@ func (ob *OrderBook) AddOrder(o *models.Order) {
 	}
 }
 
-func (ob *OrderBook) openOrder(o *models.Order) {
+func (ob *Orderbook) openOrder(o *models.Order) {
 	pp := ob.PricePoints[o.Price]
 	pp.Insert(o)
 	o.Status = models.OsOpen
@@ -86,12 +91,15 @@ func (ob *OrderBook) openOrder(o *models.Order) {
 	ob.OrderIndex[o.ID] = o
 }
 
-func (ob *OrderBook) FillBuy(o *models.Order) {
+func (ob *Orderbook) FillBuy(o *models.Order) {
 	for ob.MinAsk <= o.Price && o.Amount > 0 {
 		pp := ob.PricePoints[ob.MinAsk]
 		ppOrderHead := pp.OrderHead
 		for ppOrderHead != nil {
 			ob.fill(o, ppOrderHead)
+			if o.Amount == 0 {
+				return
+			}
 			ppOrderHead = ppOrderHead.Next
 			pp.OrderHead = ppOrderHead
 		}
@@ -99,12 +107,15 @@ func (ob *OrderBook) FillBuy(o *models.Order) {
 	}
 }
 
-func (ob *OrderBook) FillSell(o *models.Order) {
+func (ob *Orderbook) FillSell(o *models.Order) {
 	for ob.MaxBid >= o.Price && o.Amount > 0 {
 		pp := ob.PricePoints[ob.MaxBid]
 		ppOrderHead := pp.OrderHead
 		for ppOrderHead != nil {
 			ob.fill(o, ppOrderHead)
+			if o.Amount == 0 {
+				return
+			}
 			ppOrderHead = ppOrderHead.Next
 			pp.OrderHead = ppOrderHead
 		}
@@ -112,7 +123,7 @@ func (ob *OrderBook) FillSell(o *models.Order) {
 	}
 }
 
-func (ob *OrderBook) fill(o, ppOrderHead *models.Order) {
+func (ob *Orderbook) fill(o, ppOrderHead *models.Order) {
 	if ppOrderHead.Amount >= o.Amount {
 		log.Printf("actionType: %s, order: %s, fromOrder: %s", AtFilled, o.String(), ppOrderHead.String())
 		ppOrderHead.Amount -= o.Amount
@@ -127,4 +138,40 @@ func (ob *OrderBook) fill(o, ppOrderHead *models.Order) {
 			ppOrderHead.Amount = 0
 		}
 	}
+}
+
+func (ob *Orderbook) GetBidsTable(maxN int) []apimodels.OrderRecord {
+	var bids []apimodels.OrderRecord
+
+	for mb := ob.MaxBid; len(bids) < maxN && mb > 0; mb-- {
+		pp := ob.PricePoints[mb]
+		o := pp.OrderHead
+		total := 0.
+		for o != nil {
+			total += o.Amount
+			o = o.Next
+		}
+		if total > 0 {
+			bids = append(bids, apimodels.OrderRecord{fmt.Sprintf("%d", mb), fmt.Sprintf("%f", total)})
+		}
+	}
+	return bids
+}
+
+func (ob *Orderbook) GetAsksTable(maxN int) []apimodels.OrderRecord {
+	var asks []apimodels.OrderRecord
+
+	for ma := ob.MinAsk; len(asks) < maxN && ma < MaxPrice; ma++ {
+		pp := ob.PricePoints[ma]
+		o := pp.OrderHead
+		total := 0.
+		for o != nil {
+			total += o.Amount
+			o = o.Next
+		}
+		if total > 0 {
+			asks = append(asks, apimodels.OrderRecord{fmt.Sprintf("%d", ma), fmt.Sprintf("%f", total)})
+		}
+	}
+	return asks
 }

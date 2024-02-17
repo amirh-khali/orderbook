@@ -5,20 +5,20 @@ import (
 	"github.com/google/uuid"
 )
 
-type Symbol int
+type Symbol string
 
 const (
-	BTCUSDT Symbol = iota
-	ETHUSDT
-	BTCIRT
-	ETHIRT
+	BTCUSDT Symbol = "BTCUSDT"
+	ETHUSDT Symbol = "ETHUSDT"
+	BTCIRT  Symbol = "BTCIRT"
+	ETHIRT  Symbol = "ETHIRT"
 )
 
-type Side int
+type Side string
 
 const (
-	Buy Side = iota
-	Sell
+	Buy  Side = "BUY"
+	Sell Side = "SELL"
 )
 
 type OrderStatus int
@@ -41,7 +41,7 @@ type Order struct {
 }
 
 func (o *Order) String() string {
-	return fmt.Sprintf("\nOrder{id:%v,isBuy:%v,price:%v,amount:%v}", o.ID, o.Side, o.Price, o.Amount)
+	return fmt.Sprintf("Order{id:%v,isBuy:%v,price:%v,amount:%v}", o.ID, o.Side, o.Price, o.Amount)
 }
 
 func (o *Order) Renew() {
