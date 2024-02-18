@@ -7,6 +7,7 @@ import (
 	"orderbook/core/models"
 	"orderbook/env"
 	"orderbook/kafka"
+	kafkamodels "orderbook/kafka/models"
 	"orderbook/scheduler"
 )
 
@@ -27,7 +28,7 @@ func produce() {
 	a := float64(minAmount+rand.Intn(maxAmount-minAmount)) / 100000
 	p := uint32(priceMultiplier[sb]*minPrice[sb] + rand.Intn(maxPrice[sb]-minPrice[sb]))
 
-	kafka.Produce(models.Order{Side: sd, Symbol: sb, Amount: a, Price: p}, env.ENV.KafkaTopic)
+	kafka.Produce(kafkamodels.OrderRequest{Side: sd, Symbol: sb, Amount: a, Price: p}, env.ENV.KafkaTopic)
 }
 
 func constantsInit() {

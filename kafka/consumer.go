@@ -9,7 +9,7 @@ import (
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 	"orderbook/core"
-	"orderbook/core/models"
+	kafkamodels "orderbook/kafka/models"
 )
 
 var consumer *kafka.Consumer
@@ -22,8 +22,7 @@ func InitConsumer(servers string, groupID string, reset string) {
 	})
 
 	if err != nil {
-		log.Printf("failed to create consumer: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("failed to create consumer: %s\n", err)
 	}
 
 	consumer = c
@@ -33,8 +32,7 @@ func InitConsumer(servers string, groupID string, reset string) {
 func Subscribe(t string) {
 	err := consumer.Subscribe(t, nil)
 	if err != nil {
-		log.Printf("failed to subscribe %s topic\n", t)
-		os.Exit(1)
+		log.Fatalf("failed to subscribe %s topic\n", t)
 	}
 	log.Printf("topic %s subscribed\n", t)
 }
@@ -47,7 +45,7 @@ func StartConsume() {
 	for run {
 		select {
 		case sig := <-ch:
-			log.Printf("Caught signal %v: terminating\n", sig)
+			log.Printf("caught signal %v: terminating\n", sig)
 			run = false
 		default:
 			ev := consumer.Poll(100)
@@ -57,26 +55,25 @@ func StartConsume() {
 
 			switch e := ev.(type) {
 			case *kafka.Message:
-				var o models.Order
-				err := json.Unmarshal(e.Value, &o)
+				var or kafkamodels.OrderRequest
+				err := json.Unmarshal(e.Value, &or)
 				if err != nil {
-					log.Printf("Failed to deserialize payload: %s\n", err)
+					log.Printf("failed to deserialize payload: %s\n", err)
 				} else {
-					log.Printf("%% Message on %s: %+v\n", e.TopicPartition, o)
-					o.Renew()
-					(*core.OrderbookMap)[o.Symbol].AddOrder(&o)
+					log.Printf("%% message on %s: %+v\n", e.TopicPartition, or)
+					(*core.OrderbookMap)[or.Symbol].AddOrder(kafkamodels.NewOrder(or))
 				}
 				if e.Headers != nil {
-					log.Printf("%% Headers: %v\n", e.Headers)
+					log.Printf("%% headers: %v\n", e.Headers)
 				}
 			case kafka.Error:
-				log.Printf("%% Error: %v: %v\n", e.Code(), e)
+				log.Printf("%% error: %v: %v\n", e.Code(), e)
 			default:
-				log.Printf("Ignored %v\n", e)
+				log.Printf("ignored %v\n", e)
 			}
 		}
 	}
 
-	log.Printf("Closing consumer\n")
+	log.Printf("closing consumer\n")
 	_ = consumer.Close()
 }

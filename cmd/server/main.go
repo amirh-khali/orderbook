@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"orderbook/api"
 	"orderbook/core"
+	"orderbook/db/mongo"
 	"orderbook/env"
 	"orderbook/kafka"
 )
@@ -21,7 +22,10 @@ func main() {
 	env.LoadEnv()
 	r := newRouter()
 
-	core.NewOrderbookMap()
+	mongo.InitClient(env.ENV.MongoURI, env.ENV.MongoDatabaseName)
+	mongo.RegisterCollections()
+
+	core.Init()
 
 	kafka.InitConsumer(env.ENV.BootstrapServers, env.ENV.KafkaGroupID, env.ENV.KafkaAutoOffsetReset)
 	kafka.Subscribe(env.ENV.KafkaTopic)

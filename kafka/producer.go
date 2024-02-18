@@ -3,7 +3,6 @@ package kafka
 import (
 	"encoding/json"
 	"log"
-	"os"
 
 	"github.com/confluentinc/confluent-kafka-go/kafka"
 )
@@ -16,8 +15,7 @@ func InitProducer(servers string) {
 	})
 
 	if err != nil {
-		log.Printf("failed to create producer: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("failed to create producer: %s\n", err)
 	}
 
 	producer = p
@@ -38,8 +36,7 @@ func Produce(msg any, topic string) {
 	}, deliveryChan)
 
 	if err != nil {
-		log.Printf("produce failed: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("produce failed: %v\n", err)
 	}
 
 	e := <-deliveryChan

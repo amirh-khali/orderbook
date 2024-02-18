@@ -11,6 +11,8 @@ type env struct {
 	KafkaTopic           string
 	KafkaGroupID         string
 	KafkaAutoOffsetReset string
+	MongoURI             string
+	MongoDatabaseName    string
 }
 
 var ENV env
@@ -23,5 +25,7 @@ func LoadEnv() {
 		KafkaTopic:           os.Getenv("KAFKA_TOPIC"),
 		KafkaGroupID:         os.Getenv("KAFKA_GROUP_ID"),
 		KafkaAutoOffsetReset: os.Getenv("KAFKA_AUTO_OFFSET_RESET"),
+		MongoURI:             os.Getenv("MONGO_URI"),
+		MongoDatabaseName:    os.Getenv("MONGO_DATABASE_NAME"),
 	}
 }

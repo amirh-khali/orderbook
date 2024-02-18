@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	apimodels "orderbook/api/models"
 	"orderbook/core/models"
+	"orderbook/db/mongo"
 )
 
 type ActionType string
@@ -38,20 +40,34 @@ func (pp *PricePoint) Insert(o *models.Order) {
 type Orderbook struct {
 	MinAsk      uint32
 	MaxBid      uint32
-	OrderIndex  map[uuid.UUID]*models.Order
+	OrderIndex  map[primitive.ObjectID]*models.Order
 	PricePoints [MaxPrice]*PricePoint
 }
 
 var OrderbookMap *map[models.Symbol]*Orderbook
 
-func NewOrderbookMap() {
+func Init() {
 	obMap := make(map[models.Symbol]*Orderbook)
 	symbols := []models.Symbol{models.BTCUSDT, models.ETHUSDT, models.BTCIRT, models.ETHIRT}
 	for _, s := range symbols {
 		obMap[s] = newOrderbook()
 	}
-
 	OrderbookMap = &obMap
+
+	addMongoOrders()
+}
+
+func addMongoOrders() {
+	all, err := mongo.OrderRepo.GetByFilter(bson.D{{"remain_amount", bson.D{{"$gt", 0}}}})
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	for _, o := range all {
+		(*OrderbookMap)[o.Symbol].openOrder(o)
+	}
+	log.Println(len(all), "orders added to orderbooks!")
 }
 
 func newOrderbook() *Orderbook {
@@ -61,28 +77,30 @@ func newOrderbook() *Orderbook {
 	for i := range ob.PricePoints {
 		ob.PricePoints[i] = new(PricePoint)
 	}
-	ob.OrderIndex = make(map[uuid.UUID]*models.Order)
+	ob.OrderIndex = make(map[primitive.ObjectID]*models.Order)
 	return ob
 }
 
 func (ob *Orderbook) AddOrder(o *models.Order) {
+	_ = mongo.OrderRepo.Create(o)
+
 	if o.Side == models.Buy {
-		log.Printf("actionType: %s, order: %s", AtBuy, o.String())
+		log.Printf("start %s process for %s", AtBuy, o.String())
 		ob.FillBuy(o)
 	} else {
-		log.Printf("actionType: %s, order: %s", AtSell, o.String())
+		log.Printf("start %s process for %s", AtSell, o.String())
 		ob.FillSell(o)
 	}
 
-	if o.Amount > 0 {
+	if o.RemainAmount > 0 {
 		ob.openOrder(o)
 	}
+	_ = mongo.OrderRepo.Update(o)
 }
 
 func (ob *Orderbook) openOrder(o *models.Order) {
 	pp := ob.PricePoints[o.Price]
 	pp.Insert(o)
-	o.Status = models.OsOpen
 	if o.Side == models.Buy && o.Price > ob.MaxBid {
 		ob.MaxBid = o.Price
 	} else if o.Side != models.Buy && o.Price < ob.MinAsk {
@@ -92,12 +110,12 @@ func (ob *Orderbook) openOrder(o *models.Order) {
 }
 
 func (ob *Orderbook) FillBuy(o *models.Order) {
-	for ob.MinAsk <= o.Price && o.Amount > 0 {
+	for ob.MinAsk <= o.Price && o.RemainAmount > 0 {
 		pp := ob.PricePoints[ob.MinAsk]
 		ppOrderHead := pp.OrderHead
 		for ppOrderHead != nil {
 			ob.fill(o, ppOrderHead)
-			if o.Amount == 0 {
+			if o.RemainAmount == 0 {
 				return
 			}
 			ppOrderHead = ppOrderHead.Next
@@ -108,12 +126,12 @@ func (ob *Orderbook) FillBuy(o *models.Order) {
 }
 
 func (ob *Orderbook) FillSell(o *models.Order) {
-	for ob.MaxBid >= o.Price && o.Amount > 0 {
+	for ob.MaxBid >= o.Price && o.RemainAmount > 0 {
 		pp := ob.PricePoints[ob.MaxBid]
 		ppOrderHead := pp.OrderHead
 		for ppOrderHead != nil {
 			ob.fill(o, ppOrderHead)
-			if o.Amount == 0 {
+			if o.RemainAmount == 0 {
 				return
 			}
 			ppOrderHead = ppOrderHead.Next
@@ -123,21 +141,20 @@ func (ob *Orderbook) FillSell(o *models.Order) {
 	}
 }
 
-func (ob *Orderbook) fill(o, ppOrderHead *models.Order) {
-	if ppOrderHead.Amount >= o.Amount {
-		log.Printf("actionType: %s, order: %s, fromOrder: %s", AtFilled, o.String(), ppOrderHead.String())
-		ppOrderHead.Amount -= o.Amount
-		o.Amount = 0
-		o.Status = models.OsFilled
-		return
+func (ob *Orderbook) fill(o *models.Order, from *models.Order) {
+	if from.RemainAmount >= o.RemainAmount {
+		log.Printf("%s %s from %s", o.String(), AtFilled, from.String())
+		from.RemainAmount -= o.RemainAmount
+		o.RemainAmount = 0
 	} else {
-		if ppOrderHead.Amount > 0 {
-			log.Printf("actionType: %s, order: %s, fromOrder: %s", AtPartialFilled, o.String(), ppOrderHead.String())
-			o.Amount -= ppOrderHead.Amount
-			o.Status = models.OsPartial
-			ppOrderHead.Amount = 0
+		if from.RemainAmount > 0 {
+			log.Printf("%s %s from %s", o.String(), AtPartialFilled, from.String())
+			o.RemainAmount -= from.RemainAmount
+			from.RemainAmount = 0
 		}
 	}
+	_ = mongo.OrderRepo.Update(o)
+	_ = mongo.OrderRepo.Update(from)
 }
 
 func (ob *Orderbook) GetBidsTable(maxN int) []apimodels.OrderRecord {
@@ -148,7 +165,7 @@ func (ob *Orderbook) GetBidsTable(maxN int) []apimodels.OrderRecord {
 		o := pp.OrderHead
 		total := 0.
 		for o != nil {
-			total += o.Amount
+			total += o.RemainAmount
 			o = o.Next
 		}
 		if total > 0 {
@@ -166,7 +183,7 @@ func (ob *Orderbook) GetAsksTable(maxN int) []apimodels.OrderRecord {
 		o := pp.OrderHead
 		total := 0.
 		for o != nil {
-			total += o.Amount
+			total += o.RemainAmount
 			o = o.Next
 		}
 		if total > 0 {

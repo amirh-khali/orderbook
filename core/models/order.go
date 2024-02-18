@@ -2,7 +2,9 @@ package models
 
 import (
 	"fmt"
-	"github.com/google/uuid"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type Symbol string
@@ -21,30 +23,20 @@ const (
 	Sell Side = "SELL"
 )
 
-type OrderStatus int
-
-const (
-	OsNew OrderStatus = iota
-	OsOpen
-	OsPartial
-	OsFilled
-)
+const OrderCollectionName = "orders"
 
 type Order struct {
-	ID     uuid.UUID   `json:"id"`
-	Side   Side        `json:"side"`
-	Symbol Symbol      `json:"symbol"`
-	Amount float64     `json:"amount"`
-	Price  uint32      `json:"price"`
-	Status OrderStatus `json:"status"`
-	Next   *Order      `json:"next"`
+	ID           primitive.ObjectID `json:"id" bson:"_id"`
+	Side         Side               `json:"side" bson:"side"`
+	Symbol       Symbol             `json:"symbol" bson:"symbol"`
+	TotalAmount  float64            `json:"totalAmount" bson:"total_amount"`
+	RemainAmount float64            `json:"remainAmount" bson:"remain_amount"`
+	Price        uint32             `json:"price" bson:"price"`
+	Next         *Order             `json:"next" bson:"next"`
+	CreatedAt    time.Time          `json:"createdAt" bson:"created_at"`
+	UpdatedAt    time.Time          `json:"updatedAt" bson:"updated_at"`
 }
 
 func (o *Order) String() string {
-	return fmt.Sprintf("Order{id:%v,isBuy:%v,price:%v,amount:%v}", o.ID, o.Side, o.Price, o.Amount)
-}
-
-func (o *Order) Renew() {
-	o.ID = uuid.New()
-	o.Status = OsNew
+	return fmt.Sprintf("order{id:%v,isBuy:%v,price:%v,total:%v,remain:%v}", o.ID, o.Side, o.Price, o.TotalAmount, o.RemainAmount)
 }

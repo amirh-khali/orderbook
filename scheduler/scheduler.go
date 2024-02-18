@@ -15,8 +15,7 @@ var scheduler gocron.Scheduler
 func Init() {
 	s, err := gocron.NewScheduler()
 	if err != nil {
-		log.Printf("failed to create scheduler: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("failed to create scheduler: %s\n", err)
 	}
 
 	scheduler = s
@@ -29,8 +28,7 @@ func AddJob(d time.Duration, function any) {
 		gocron.NewTask(function),
 	)
 	if err != nil {
-		log.Printf("failed to create job: %s\n", err)
-		os.Exit(1)
+		log.Fatalf("failed to create job: %s\n", err)
 	}
 	log.Println("a new job added to the scheduler with id: ", j.ID())
 }
