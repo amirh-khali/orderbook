@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
 	"orderbook/api"
 	"orderbook/core"
@@ -33,6 +35,7 @@ func main() {
 
 	err := r.Run()
 	if err != nil {
+		log.Println("field to run the server", err)
 		return
 	}
 }

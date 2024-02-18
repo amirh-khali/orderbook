@@ -24,7 +24,7 @@ func InitOrderRepo(db *mongo.Database) {
 func (r *OrderRepository) Create(o *models.Order) error {
 	_, err := r.Collection.InsertOne(ctx, o)
 	if err != nil {
-		log.Println("error: ", err.Error())
+		log.Print("failed to add", o.String(), " error:", err.Error())
 	}
 	return err
 }
@@ -33,7 +33,7 @@ func (r *OrderRepository) Update(o *models.Order) error {
 	o.UpdatedAt = time.Now()
 	_, err := r.Collection.ReplaceOne(ctx, bson.D{{"_id", o.ID}}, o)
 	if err != nil {
-		log.Println("error: ", err.Error())
+		log.Print("failed to update", o.String(), " error:", err.Error())
 	}
 	return err
 }

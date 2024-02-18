@@ -27,7 +27,7 @@ func Produce(msg any, topic string) {
 
 	payload, err := json.Marshal(msg)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	err = producer.Produce(&kafka.Message{

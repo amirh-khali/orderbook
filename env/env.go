@@ -1,6 +1,7 @@
 package env
 
 import (
+	"log"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -18,7 +19,10 @@ type env struct {
 var ENV env
 
 func LoadEnv() {
-	_ = godotenv.Load("env/.env")
+	err := godotenv.Load("env/.env")
+	if err != nil {
+		log.Fatalln("failed to load env!", err)
+	}
 
 	ENV = env{
 		BootstrapServers:     os.Getenv("BOOTSTRAP_SERVERS"),

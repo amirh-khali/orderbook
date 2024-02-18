@@ -58,11 +58,7 @@ func Init() {
 }
 
 func addMongoOrders() {
-	all, err := mongo.OrderRepo.GetByFilter(bson.D{{"remain_amount", bson.D{{"$gt", 0}}}})
-	if err != nil {
-		log.Println(err)
-		return
-	}
+	all, _ := mongo.OrderRepo.GetByFilter(bson.D{{"remain_amount", bson.D{{"$gt", 0}}}})
 
 	for _, o := range all {
 		(*OrderbookMap)[o.Symbol].openOrder(o)
@@ -95,6 +91,7 @@ func (ob *Orderbook) AddOrder(o *models.Order) {
 	if o.RemainAmount > 0 {
 		ob.openOrder(o)
 	}
+
 	_ = mongo.OrderRepo.Update(o)
 }
 
